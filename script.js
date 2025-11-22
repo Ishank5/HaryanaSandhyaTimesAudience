@@ -1,12 +1,12 @@
 const firebaseConfig = {
-    apiKey: "AIzaSyAotrOK17wPkD-pBy1XAJjUMKHAkM4UVCk",
-    authDomain: "haryanasandhyatimes-59fed.firebaseapp.com",
-    projectId: "haryanasandhyatimes-59fed",
-    storageBucket: "haryanasandhyatimes-59fed.firebasestorage.app",
-    messagingSenderId: "100305210947",
-    appId: "1:100305210947:web:e6fb4c2f06be08153e8ef6",
-    measurementId: "G-1KZZT24YCL"
-  };
+  apiKey: "AIzaSyDclckQnSOOCiYt6d8H4BLy9fuuF-nUwV8",
+  authDomain: "haryanasandhyatimes-fb72f.firebaseapp.com",
+  projectId: "haryanasandhyatimes-fb72f",
+  storageBucket: "haryanasandhyatimes-fb72f.firebasestorage.app",
+  messagingSenderId: "94477299526",
+  appId: "1:94477299526:web:bed36e6c101f0d9059ff47",
+  measurementId: "G-1JECMXTWXD"
+};
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -567,3 +567,4 @@ document.addEventListener('DOMContentLoaded', () => {
     loadGenres();
     loadAboutContent();
 });
+
