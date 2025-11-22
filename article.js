@@ -43,14 +43,14 @@ function formatDateIST(timestamp) {
 async function loadArticle() {
     const articleId = getArticleId();
     if (!articleId) {
-        document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Article not found</h2><a href="HST.html">Go to Home</a></div>';
+        document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Article not found</h2><a href="index.html">Go to Home</a></div>';
         return;
     }
 
     try {
         const doc = await db.collection('articles').doc(articleId).get();
         if (!doc.exists) {
-            document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Article not found</h2><a href="HST.html">Go to Home</a></div>';
+            document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Article not found</h2><a href="index.html">Go to Home</a></div>';
             return;
         }
 
@@ -58,7 +58,7 @@ async function loadArticle() {
         
         // Only show published articles
         if (article.status !== 'published') {
-            document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Article not available</h2><a href="HST.html">Go to Home</a></div>';
+            document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Article not available</h2><a href="index.html">Go to Home</a></div>';
             return;
         }
 
@@ -71,7 +71,7 @@ async function loadArticle() {
         
     } catch (error) {
         console.error('Error loading article:', error);
-        document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Error loading article</h2><a href="HST.html">Go to Home</a></div>';
+        document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Error loading article</h2><a href="index.html">Go to Home</a></div>';
     }
 }
 
@@ -341,4 +341,5 @@ function copyToClipboard(text) {
 document.addEventListener('DOMContentLoaded', () => {
     loadArticle();
 });
+
 
