@@ -8,7 +8,7 @@ const firebaseConfig = {
   measurementId: "G-1JECMXTWXD"
 };
 
-firebase.initializeApp(firebaseConfig);
+ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const storage = firebase.storage();
 
@@ -61,7 +61,8 @@ const translations = {
         footerMade: "Made with <i class=\"fas fa-heart\"></i> by <a href=\"https://humblesolutions.in\" target=\"_blank\">Humble Solutions Pvt Ltd</a>",
         submitting: "सबमिट हो रहा है...",
         successMessage: "पंजीकरण सफलतापूर्वक पूर्ण हुआ!",
-        errorMessage: "कुछ गलत हो गया। कृपया पुनः प्रयास करें।"
+        errorMessage: "कुछ गलत हो गया। कृपया पुनः प्रयास करें।",
+        breakingNewsLabel: "ब्रेकिंग न्यूज़"
     },
     en: {
         siteName: "Haryana Sandhya Times",
@@ -111,7 +112,8 @@ const translations = {
         footerMade: "Made with <i class=\"fas fa-heart\"></i> by <a href=\"https://humblesolutions.in\" target=\"_blank\">Humble Solutions Pvt Ltd</a>",
         submitting: "Submitting...",
         successMessage: "Registration completed successfully!",
-        errorMessage: "Something went wrong. Please try again."
+        errorMessage: "Something went wrong. Please try again.",
+        breakingNewsLabel: "Breaking News"
     }
 };
 
@@ -241,6 +243,9 @@ function switchLanguage() {
             }
         }
     });
+    
+    // Reload live news to update label
+    loadLiveNews();
 }
 
 function showSection(sectionName) {
@@ -326,6 +331,76 @@ function createArticleCard(article) {
 
 function openArticle(articleId) {
     window.location.href = `article.html?id=${articleId}`;
+}
+
+async function loadLiveNews() {
+    try {
+        const liveNewsSnapshot = await db.collection('liveNews')
+            .orderBy('createdAt', 'desc')
+            .limit(5)
+            .get();
+        
+        const liveNews = liveNewsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        displayLiveNews(liveNews);
+    } catch (error) {
+        console.error('Error loading live news:', error);
+        // Hide breaking news container if there's an error
+        document.getElementById('breakingNewsContainer').style.display = 'none';
+    }
+}
+
+function displayLiveNews(liveNews) {
+    const container = document.getElementById('breakingNewsContainer');
+    const tickerContent = document.getElementById('tickerContent');
+    const tickerWrapper = tickerContent.parentElement;
+    
+    if (!liveNews || liveNews.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    // Show container if we have news
+    container.style.display = 'flex';
+    
+    // Remove any existing duplicate
+    const existingDuplicate = tickerWrapper.querySelector('.ticker-duplicate');
+    if (existingDuplicate) {
+        existingDuplicate.remove();
+    }
+    
+    // Clear previous content
+    tickerContent.innerHTML = '';
+    
+    // Create news items
+    liveNews.forEach((news, index) => {
+        const newsItem = document.createElement('span');
+        newsItem.className = 'ticker-item';
+        
+        // Extract text from news object (handle both 'text' field and direct text)
+        const newsText = news.text || news.title || '';
+        // Remove quotes if present
+        const cleanText = newsText.replace(/^["']|["']$/g, '');
+        
+        newsItem.textContent = cleanText;
+        tickerContent.appendChild(newsItem);
+        
+        // Add separator between items (except for the last one)
+        if (index < liveNews.length - 1) {
+            const separator = document.createElement('span');
+            separator.className = 'ticker-separator';
+            separator.textContent = ' • ';
+            tickerContent.appendChild(separator);
+        }
+    });
+    
+    // Duplicate content for seamless infinite loop - append to same parent
+    const duplicate = tickerContent.cloneNode(true);
+    duplicate.className = 'ticker-content ticker-duplicate';
+    tickerContent.parentElement.appendChild(duplicate);
 }
 
 async function loadArticles() {
@@ -563,6 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('reporterForm').addEventListener('submit', handleReporterFormSubmit);
     
+    loadLiveNews();
     loadArticles();
     loadGenres();
     loadAboutContent();
