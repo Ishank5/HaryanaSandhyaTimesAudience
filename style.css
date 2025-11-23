@@ -108,6 +108,95 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Breaking News Ticker */
+.breaking-news-container {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: var(--white);
+    padding: 15px 0;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.breaking-news-label {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    z-index: 2;
+}
+
+.breaking-news-label i {
+    font-size: 1.2rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.breaking-news-ticker {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    height: 30px;
+    display: flex;
+    align-items: center;
+}
+
+.ticker-content {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    animation: scroll-left 100s linear infinite;
+    gap: 20px;
+    padding-left: 20px;
+    will-change: transform;
+}
+
+.ticker-content.ticker-duplicate {
+    animation: scroll-left 100s linear infinite;
+    padding-left: 20px;
+    will-change: transform;
+}
+
+.ticker-item {
+    display: inline-block;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0 10px;
+}
+
+.ticker-separator {
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: bold;
+}
+
+@keyframes scroll-left {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+/* Pause animation on hover for better readability */
+.breaking-news-container:hover .ticker-content,
+.breaking-news-container:hover .ticker-content.ticker-duplicate {
+    animation-play-state: paused;
+}
+
 /* Navigation */
 .navbar {
     background: var(--white);
@@ -691,6 +780,35 @@ body {
     .footer-content {
         grid-template-columns: 1fr;
         gap: 30px;
+    }
+
+    .breaking-news-container {
+        flex-direction: column;
+        padding: 12px 0;
+    }
+
+    .breaking-news-label {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .breaking-news-ticker {
+        width: 100%;
+        height: auto;
+        min-height: 25px;
+        padding: 5px 0;
+    }
+
+    .ticker-content {
+        font-size: 0.85rem;
+        padding-left: 15px;
+    }
+
+    .ticker-item {
+        font-size: 0.85rem;
+        padding: 0 8px;
     }
 }
 
