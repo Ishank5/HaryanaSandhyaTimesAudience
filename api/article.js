@@ -29,7 +29,7 @@ export default async function handler(req, res) {
         return res.status(404).send('Article not found or not published');
       }
   
-      // Extract article data
+      // Extract article data - handle all Firestore field types
       const article = {
         id: id,
         title: data.fields.title?.stringValue || 'Article',
@@ -38,11 +38,15 @@ export default async function handler(req, res) {
         genre: data.fields.genre?.stringValue || '',
         location: data.fields.location?.stringValue || '',
         reporter: data.fields.reporter?.stringValue || '',
-        content: data.fields.content?.stringValue || ''
+        content: data.fields.content?.stringValue || '',
+        publishedDate: data.fields.publishedDate?.timestampValue || null,
+        updatedAt: data.fields.updatedAt?.timestampValue || null,
+        additionalImages: data.fields.additionalImages?.arrayValue?.values?.map(v => v.stringValue) || []
       };
   
       console.log('Article loaded:', article.title);
       console.log('Image URL:', article.imageUrl);
+      console.log('Additional Images:', article.additionalImages);
   
       // Build current URL
       const protocol = req.headers['x-forwarded-proto'] || 'https';
@@ -99,7 +103,9 @@ export default async function handler(req, res) {
       <!-- Simple content for bots -->
       <h1>${escapeHtml(article.title)}</h1>
       <p>${escapeHtml(article.tagline || '')}</p>
-      ${article.imageUrl ? `<img src="${escapeHtml(article.imageUrl)}" alt="${escapeHtml(article.title)}" style="max-width:100%">` : ''}
+      ${article.imageUrl ? `<img src="${escapeHtml(article.imageUrl)}" alt="${escapeHtml(article.title)}" style="max-width:100%; height:auto;">` : ''}
+      ${article.additionalImages && article.additionalImages.length > 0 ? article.additionalImages.map(img => `<img src="${escapeHtml(img)}" alt="Article image" style="max-width:100%; height:auto;">`).join('') : ''}
+      <div>${article.content || ''}</div>
       ` : `
       <!-- Full page for users -->
       <header class="header">
@@ -126,20 +132,26 @@ export default async function handler(req, res) {
           <div class="container">
               <div class="article-container">
                   <div class="article-header">
-                      <div class="article-genre" id="articleGenre"></div>
-                      <h1 class="article-title" id="articleTitle"></h1>
-                      <p class="article-tagline" id="articleTagline"></p>
+                      <div class="article-genre" id="articleGenre">${escapeHtml(article.genre || '')}</div>
+                      <h1 class="article-title" id="articleTitle">${escapeHtml(article.title)}</h1>
+                      <p class="article-tagline" id="articleTagline">${escapeHtml(article.tagline || '')}</p>
                       
                       <div class="article-meta-info">
                           <div class="meta-item">
                               <i class="far fa-calendar"></i>
                               <span class="meta-label">Published:</span>
-                              <span id="publishedDate"></span>
+                              <span id="publishedDate">${article.publishedDate || 'N/A'}</span>
                           </div>
-                          <div class="meta-item" id="locationItem" style="display: none;">
+                          ${article.location ? `
+                          <div class="meta-item" id="locationItem">
                               <i class="fas fa-map-marker-alt"></i>
-                              <span id="articleLocation"></span>
-                          </div>
+                              <span id="articleLocation">${escapeHtml(article.location)}</span>
+                          </div>` : ''}
+                          ${article.reporter ? `
+                          <div class="meta-item" id="reporterItem">
+                              <i class="fas fa-user"></i>
+                              <span id="articleReporter">${escapeHtml(article.reporter)}</span>
+                          </div>` : ''}
                       </div>
   
                       <div class="share-section">
@@ -153,10 +165,15 @@ export default async function handler(req, res) {
                   </div>
   
                   <div class="article-images" id="articleImages">
-                      <div class="images-scroll-container" id="imagesContainer"></div>
+                      <div class="images-scroll-container" id="imagesContainer">
+                          ${article.imageUrl ? `<div class="article-image-item"><img src="${escapeHtml(article.imageUrl)}" alt="${escapeHtml(article.title)}" style="max-width:100%; height:auto;"></div>` : ''}
+                          ${article.additionalImages ? article.additionalImages.map((img, i) => 
+                              `<div class="article-image-item"><img src="${escapeHtml(img)}" alt="Image ${i+2}" style="max-width:100%; height:auto;"></div>`
+                          ).join('') : ''}
+                      </div>
                   </div>
   
-                  <div class="article-content" id="articleContent"></div>
+                  <div class="article-content" id="articleContent">${article.content || ''}</div>
               </div>
           </div>
       </main>

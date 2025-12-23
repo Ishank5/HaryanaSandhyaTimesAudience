@@ -1,4 +1,10 @@
 {
+  "functions": {
+    "api/article.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
     {
       "source": "/article.html",
@@ -7,11 +13,11 @@
   ],
   "headers": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/article",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, s-maxage=300, stale-while-revalidate=86400"
+          "value": "public, s-maxage=60, stale-while-revalidate=300"
         }
       ]
     }
