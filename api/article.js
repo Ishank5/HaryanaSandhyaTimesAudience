@@ -58,7 +58,8 @@ export default async function handler(req, res) {
   
       // Check if requester is a bot/crawler (more comprehensive detection)
       const userAgent = req.headers['user-agent'] || '';
-      const isBot = /bot|crawler|spider|facebookexternalhit|facebook|whatsapp|twitter|telegram|slack|linkedin|pinterest|googlebot|bingbot|yandex|baiduspider|duckduckbot|slurp|exabot|facebot|ia_archiver/i.test(userAgent);
+      // WhatsApp uses various user agents: WhatsApp, WhatsAppBot, WhatsApp/2.x, etc.
+      const isBot = /bot|crawler|spider|facebookexternalhit|facebook|whatsapp|whatsappbot|whatsapp\/|twitter|telegram|slack|linkedin|pinterest|googlebot|bingbot|yandex|baiduspider|duckduckbot|slurp|exabot|facebot|ia_archiver|headless|phantomjs|selenium/i.test(userAgent);
       
       console.log('Is Bot:', isBot);
       console.log('User-Agent:', userAgent);
