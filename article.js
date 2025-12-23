@@ -69,6 +69,9 @@ async function loadArticle() {
         // Update page title
         document.title = `${article.title} - Haryana Sandhya Times`;
         
+        // Set meta tags for social sharing (WhatsApp, Facebook, etc.)
+        setMetaTags(article);
+        
     } catch (error) {
         console.error('Error loading article:', error);
         document.body.innerHTML = '<div style="text-align: center; padding: 50px;"><h2>Error loading article</h2><a href="index.html">Go to Home</a></div>';
@@ -335,6 +338,63 @@ function copyToClipboard(text) {
         document.execCommand('copy');
         document.body.removeChild(textArea);
     }
+}
+
+// Set meta tags for social media sharing (WhatsApp, Facebook, Twitter, etc.)
+function setMetaTags(article) {
+    // Get the current page URL (absolute)
+    const currentUrl = window.location.href;
+    
+    // Get article details
+    const title = article.title || 'Article - Haryana Sandhya Times';
+    const description = article.tagline || article.title || 'Read this article on Haryana Sandhya Times';
+    // Ensure image URL is absolute (Firebase Storage URLs are already absolute)
+    const imageUrl = article.imageUrl || '';
+    
+    // Helper function to set or update meta tag
+    function setMetaTag(property, content, isProperty = true) {
+        let meta = document.querySelector(`meta[${isProperty ? 'property' : 'name'}="${property}"]`);
+        if (!meta) {
+            meta = document.createElement('meta');
+            if (isProperty) {
+                meta.setAttribute('property', property);
+            } else {
+                meta.setAttribute('name', property);
+            }
+            document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', content);
+    }
+    
+    // Set Open Graph tags
+    setMetaTag('og:type', 'article');
+    setMetaTag('og:url', currentUrl);
+    setMetaTag('og:title', title);
+    setMetaTag('og:description', description);
+    setMetaTag('og:site_name', 'Haryana Sandhya Times');
+    setMetaTag('og:locale', 'hi_IN');
+    
+    // Set image only if available
+    if (imageUrl) {
+        setMetaTag('og:image', imageUrl);
+        setMetaTag('og:image:secure_url', imageUrl);
+        setMetaTag('og:image:type', 'image/jpeg');
+        setMetaTag('og:image:width', '1200');
+        setMetaTag('og:image:height', '630');
+        setMetaTag('og:image:alt', title);
+    }
+    
+    // Set Twitter Card tags
+    setMetaTag('twitter:card', 'summary_large_image', false);
+    setMetaTag('twitter:url', currentUrl, false);
+    setMetaTag('twitter:title', title, false);
+    setMetaTag('twitter:description', description, false);
+    if (imageUrl) {
+        setMetaTag('twitter:image', imageUrl, false);
+    }
+    
+    // Set standard meta description
+    setMetaTag('description', description, false);
 }
 
 // Initialize
