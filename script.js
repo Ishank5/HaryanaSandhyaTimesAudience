@@ -483,7 +483,8 @@ function displayGenres() {
     genres.forEach(genre => {
         const card = document.createElement('div');
         card.className = 'genre-card';
-        const icon = getGenreIcon(genre.name);
+        // Use saved icon if available, otherwise auto-assign
+        const icon = genre.icon || getGenreIcon(genre.name);
         card.innerHTML = `
             <i class="${icon}"></i>
             <h3>${genre.name}</h3>
