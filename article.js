@@ -285,264 +285,66 @@ function shareArticle(platform) {
 
     const url = window.location.href;
     const title = currentArticle.title;
-    const tagline = currentArticle.tagline || title;
-    const imageUrl = currentArticle.imageUrl || '';
 
     switch (platform) {
         case 'whatsapp':
-            shareToWhatsAppWithImage(title, tagline, url, imageUrl);
+            shareToWhatsApp(title, url);
             break;
         case 'facebook':
-            shareToFacebook(title, tagline, url, imageUrl);
+            shareToFacebook(url);
             break;
         case 'twitter':
-            shareToTwitter(title, tagline, url, imageUrl);
+            shareToTwitter(title, url);
             break;
         case 'instagram':
-            shareToInstagram(title, tagline, url, imageUrl);
+            shareToInstagram(url);
             break;
         case 'generic':
         default:
-            shareGeneric(title, tagline, url, imageUrl);
+            shareGeneric(title, url);
             break;
     }
 }
 
-// Share to WhatsApp with image
-async function shareToWhatsAppWithImage(title, tagline, url, imageUrl) {
-    const message = `${title}\n\n${tagline}\n\n📰 ${url}`;
-    
-    if (!imageUrl) {
-        // No image, just share text
-        const shareUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(shareUrl, '_blank');
-        return;
-    }
-
-    // Check if Android (for intent URL)
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-    if (isAndroid) {
-        // Android: Try Web Share API first, then Intent URL
-        try {
-            console.log('Android detected, trying Web Share API first');
-            
-            if (navigator.share) {
-                const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
-                
-                // Try Web Share API with file (best method)
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({
-                            files: [file],
-                            title: title,
-                            text: message
-                        });
-                        console.log('Web Share API successful on Android!');
-                        return;
-                    } catch (shareError) {
-                        if (shareError.name === 'AbortError') {
-                            return;
-                        }
-                        console.log('Web Share API failed, trying Intent URL:', shareError);
-                    }
-                } else {
-                    // Try sharing anyway (some browsers don't check canShare correctly)
-                    try {
-                        await navigator.share({
-                            files: [file],
-                            text: `${title}\n\n${message}`
-                        });
-                        console.log('Web Share API successful (without canShare check)!');
-                        return;
-                    } catch (directError) {
-                        console.log('Direct share failed, using Intent URL fallback');
-                    }
-                }
-            }
-            
-            // Fallback: Use Android Intent URL
-            console.log('Using Android Intent URL method');
-            
-            // Download image first so user can attach it
-            downloadImage(imageUrl, 'article-image.jpg');
-            
-            // Use WhatsApp Intent URL to open WhatsApp with pre-filled text
-            // Format: intent://send/#Intent;scheme=whatsapp;action=android.intent.action.SEND;S.android.intent.extra.TEXT=text;package=com.whatsapp;end
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappIntent = `intent://send/#Intent;scheme=whatsapp;action=android.intent.action.SEND;S.android.intent.extra.TEXT=${encodedMessage};package=com.whatsapp;end`;
-            
-            // Try to open intent
-            setTimeout(() => {
-                window.location.href = whatsappIntent;
-                
-                // Show instruction after a moment
-                setTimeout(() => {
-                    alert('WhatsApp is opening with the message. The image has been downloaded to your gallery - please attach it from the gallery when sharing in WhatsApp.');
-                }, 1000);
-            }, 300);
-            
-        } catch (error) {
-            console.error('Error with Android share:', error);
-            // Final fallback
-            downloadImage(imageUrl, 'article-image.jpg');
-            setTimeout(() => {
-                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-                window.open(whatsappUrl, '_blank');
-                alert('Image downloaded! Please attach it in WhatsApp from your gallery.');
-            }, 500);
-        }
-        return;
-    }
-
-    // For iOS or other mobile devices, use Web Share API
-    if (isMobile && navigator.share) {
-        try {
-            console.log('Mobile device detected, trying Web Share API');
-            const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
-            
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: title,
-                        text: message
-                    });
-                    return;
-                } catch (shareError) {
-                    if (shareError.name === 'AbortError') {
-                        return;
-                    }
-                    throw shareError;
-                }
-            }
-        } catch (error) {
-            console.error('Web Share API failed:', error);
-        }
-    }
-
-    // Fallback for all platforms: Download image and open WhatsApp
-    downloadImage(imageUrl, 'article-image.jpg');
-    setTimeout(() => {
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
-        if (isMobile) {
-            alert('Image downloaded! Please attach it in WhatsApp from your gallery.');
-        } else {
-            alert('Image downloaded! Please attach it manually in WhatsApp Web.');
-        }
-    }, 500);
+// Share to WhatsApp (simple - only title in message)
+function shareToWhatsApp(title, url) {
+    const message = title;
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(message + ' - ' + url)}`;
+    window.open(shareUrl, '_blank');
 }
 
 // Share to Facebook
-async function shareToFacebook(title, tagline, url, imageUrl) {
-    // Facebook will fetch meta tags automatically, so we just share the URL
-    // But we can also try Web Share API with image for better mobile experience
-    if (navigator.share && imageUrl) {
-        try {
-            const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: title,
-                    text: `${tagline}\n\n${url}`
-                });
-                return;
-            }
-        } catch (error) {
-            console.log('Web Share API failed, using Facebook URL');
-        }
-    }
-    
-    // Standard Facebook share URL
+function shareToFacebook(url) {
     const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
     window.open(shareUrl, '_blank');
 }
 
 // Share to Twitter/X
-async function shareToTwitter(title, tagline, url, imageUrl) {
-    const message = `${title}\n\n${tagline}`;
-    
-    // Twitter Web Share API support is limited, so we'll use URL method
-    // For mobile, try Web Share API first
-    if (navigator.share && imageUrl && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        try {
-            const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: title,
-                    text: `${message}\n\n${url}`
-                });
-                return;
-            }
-        } catch (error) {
-            console.log('Web Share API failed, using Twitter URL');
-        }
-    }
-    
-    // Standard Twitter share URL
-    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(url)}`;
+function shareToTwitter(title, url) {
+    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`;
     window.open(shareUrl, '_blank');
 }
 
 // Share to Instagram
-async function shareToInstagram(title, tagline, url, imageUrl) {
-    if (!imageUrl) {
-        alert('Please copy the link and share it on Instagram');
-        copyToClipboard(url);
-        return;
-    }
-
-    // Instagram doesn't support URL sharing directly
-    // Download image and copy link, user can post manually
-    try {
-        downloadImage(imageUrl, 'article-image.jpg');
-        
-        // Copy formatted message to clipboard
-        const message = `${title}\n\n${tagline}\n\n${url}`;
-        copyToClipboard(message);
-        
-        alert('Image downloaded and message copied! Open Instagram and create a new post with the downloaded image. The message with link is in your clipboard - paste it as the caption.');
-    } catch (error) {
-        console.error('Error sharing to Instagram:', error);
-        alert('Please download the image and share it manually on Instagram');
-        downloadImage(imageUrl, 'article-image.jpg');
-        copyToClipboard(url);
-    }
+function shareToInstagram(url) {
+    alert('Please copy the link and share it on Instagram');
+    copyToClipboard(url);
 }
 
 // Generic share (Web Share API)
-async function shareGeneric(title, tagline, url, imageUrl) {
+function shareGeneric(title, url) {
     if (navigator.share) {
-        try {
-            const shareData = {
-                title: title,
-                text: `${tagline}\n\n${url}`,
-                url: url
-            };
-            
-            // Try to include image if available
-            if (imageUrl) {
-                try {
-                    const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        shareData.files = [file];
-                    }
-                } catch (error) {
-                    console.log('Could not add image to share');
-                }
-            }
-            
-            await navigator.share(shareData);
-        } catch (err) {
+        navigator.share({
+            title: title,
+            text: title,
+            url: url
+        }).catch(err => {
             if (err.name !== 'AbortError') {
                 console.log('Share failed, falling back to clipboard');
                 copyToClipboard(url);
                 alert('Link copied to clipboard!');
             }
-        }
+        });
     } else {
         // Fallback: copy to clipboard
         copyToClipboard(url);
@@ -550,125 +352,6 @@ async function shareGeneric(title, tagline, url, imageUrl) {
     }
 }
 
-// Helper function to fetch image and convert to File object
-async function fetchImageAsFile(imageUrl, filename) {
-    try {
-        console.log('Fetching image with URL:', imageUrl);
-        
-        // First, try direct fetch with CORS
-        let response;
-        try {
-            response = await fetch(imageUrl, { 
-                mode: 'cors',
-                credentials: 'omit'
-            });
-        } catch (fetchError) {
-            console.log('Direct fetch failed, trying canvas method:', fetchError);
-            // If direct fetch fails due to CORS, use canvas method
-            return await fetchImageViaCanvas(imageUrl, filename);
-        }
-        
-        if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-        }
-        
-        const blob = await response.blob();
-        console.log('Blob created, size:', blob.size, 'type:', blob.type);
-        
-        // Ensure we have a valid image type
-        const imageType = blob.type || 'image/jpeg';
-        const file = new File([blob], filename, { type: imageType });
-        console.log('File created:', file.name, file.size, file.type);
-        
-        return file;
-    } catch (error) {
-        console.error('Error fetching image:', error);
-        // Try canvas method as fallback
-        try {
-            console.log('Attempting canvas method as fallback...');
-            return await fetchImageViaCanvas(imageUrl, filename);
-        } catch (canvasError) {
-            console.error('Canvas method also failed:', canvasError);
-            throw error;
-        }
-    }
-}
-
-// Alternative method using canvas to handle CORS issues
-async function fetchImageViaCanvas(imageUrl, filename) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous'; // Enable CORS
-        
-        img.onload = function() {
-            try {
-                // Create canvas and draw image
-                const canvas = document.createElement('canvas');
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                
-                // Convert canvas to blob
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        reject(new Error('Failed to convert canvas to blob'));
-                        return;
-                    }
-                    const file = new File([blob], filename, { type: 'image/jpeg' });
-                    console.log('File created via canvas:', file.name, file.size);
-                    resolve(file);
-                }, 'image/jpeg', 0.95);
-            } catch (error) {
-                reject(error);
-            }
-        };
-        
-        img.onerror = function(error) {
-            console.error('Image load error:', error);
-            reject(new Error('Failed to load image'));
-        };
-        
-        // Start loading the image
-        img.src = imageUrl;
-    });
-}
-
-// Helper function to download image
-function downloadImage(url, filename) {
-    try {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        link.target = '_blank';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        
-        // Clean up after a short delay
-        setTimeout(() => {
-            document.body.removeChild(link);
-        }, 100);
-    } catch (error) {
-        console.error('Error downloading image:', error);
-        // Fallback: open image in new tab
-        window.open(url, '_blank');
-    }
-}
-
-// Helper function to convert File to Base64
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = reader.result;
-            resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
 
 // Copy to clipboard
 function copyToClipboard(text) {
