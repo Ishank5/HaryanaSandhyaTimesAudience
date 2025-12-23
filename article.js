@@ -285,42 +285,230 @@ function shareArticle(platform) {
 
     const url = window.location.href;
     const title = currentArticle.title;
-    const text = currentArticle.tagline || title;
-
-    let shareUrl = '';
+    const tagline = currentArticle.tagline || title;
+    const imageUrl = currentArticle.imageUrl || '';
 
     switch (platform) {
         case 'whatsapp':
-            shareUrl = `https://wa.me/?text=${encodeURIComponent(title + ' - ' + url)}`;
-            window.open(shareUrl, '_blank');
+            shareToWhatsAppWithImage(title, tagline, url, imageUrl);
             break;
         case 'facebook':
-            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-            window.open(shareUrl, '_blank');
+            shareToFacebook(title, tagline, url, imageUrl);
             break;
         case 'twitter':
-            shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`;
-            window.open(shareUrl, '_blank');
+            shareToTwitter(title, tagline, url, imageUrl);
             break;
         case 'instagram':
-            // Instagram doesn't support direct URL sharing, open in new tab
-            alert('Please copy the link and share it on Instagram');
-            copyToClipboard(url);
+            shareToInstagram(title, tagline, url, imageUrl);
             break;
         case 'generic':
         default:
-            if (navigator.share) {
-                navigator.share({
+            shareGeneric(title, tagline, url, imageUrl);
+            break;
+    }
+}
+
+// Share to WhatsApp with image
+async function shareToWhatsAppWithImage(title, tagline, url, imageUrl) {
+    const message = `${title}\n\n${tagline}\n\n📰 ${url}`;
+    
+    if (!imageUrl) {
+        // No image, just share text
+        const shareUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(shareUrl, '_blank');
+        return;
+    }
+
+    try {
+        const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
+        
+        // Check if Web Share API with files is supported
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
                     title: title,
-                    text: text,
-                    url: url
-                }).catch(err => console.log('Error sharing', err));
-            } else {
-                // Fallback: copy to clipboard
+                    text: message
+                });
+                return; // Success - image shared automatically!
+            } catch (shareError) {
+                if (shareError.name === 'AbortError') {
+                    return; // User cancelled
+                }
+            }
+        }
+        
+        // Fallback for mobile
+        if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            downloadImage(imageUrl, 'article-image.jpg');
+            setTimeout(() => {
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+            }, 500);
+        } else {
+            // Desktop fallback
+            downloadImage(imageUrl, 'article-image.jpg');
+            setTimeout(() => {
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+                alert('Image downloaded! Please attach it manually in WhatsApp Web.');
+            }, 500);
+        }
+    } catch (error) {
+        console.error('Error sharing to WhatsApp:', error);
+        // Fallback to text-only
+        const shareUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(shareUrl, '_blank');
+    }
+}
+
+// Share to Facebook
+async function shareToFacebook(title, tagline, url, imageUrl) {
+    // Facebook will fetch meta tags automatically, so we just share the URL
+    // But we can also try Web Share API with image for better mobile experience
+    if (navigator.share && imageUrl) {
+        try {
+            const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: title,
+                    text: `${tagline}\n\n${url}`
+                });
+                return;
+            }
+        } catch (error) {
+            console.log('Web Share API failed, using Facebook URL');
+        }
+    }
+    
+    // Standard Facebook share URL
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+    window.open(shareUrl, '_blank');
+}
+
+// Share to Twitter/X
+async function shareToTwitter(title, tagline, url, imageUrl) {
+    const message = `${title}\n\n${tagline}`;
+    
+    // Twitter Web Share API support is limited, so we'll use URL method
+    // For mobile, try Web Share API first
+    if (navigator.share && imageUrl && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        try {
+            const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: title,
+                    text: `${message}\n\n${url}`
+                });
+                return;
+            }
+        } catch (error) {
+            console.log('Web Share API failed, using Twitter URL');
+        }
+    }
+    
+    // Standard Twitter share URL
+    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(url)}`;
+    window.open(shareUrl, '_blank');
+}
+
+// Share to Instagram
+async function shareToInstagram(title, tagline, url, imageUrl) {
+    if (!imageUrl) {
+        alert('Please copy the link and share it on Instagram');
+        copyToClipboard(url);
+        return;
+    }
+
+    // Instagram doesn't support URL sharing directly
+    // Download image and copy link, user can post manually
+    try {
+        downloadImage(imageUrl, 'article-image.jpg');
+        
+        // Copy formatted message to clipboard
+        const message = `${title}\n\n${tagline}\n\n${url}`;
+        copyToClipboard(message);
+        
+        alert('Image downloaded and message copied! Open Instagram and create a new post with the downloaded image. The message with link is in your clipboard - paste it as the caption.');
+    } catch (error) {
+        console.error('Error sharing to Instagram:', error);
+        alert('Please download the image and share it manually on Instagram');
+        downloadImage(imageUrl, 'article-image.jpg');
+        copyToClipboard(url);
+    }
+}
+
+// Generic share (Web Share API)
+async function shareGeneric(title, tagline, url, imageUrl) {
+    if (navigator.share) {
+        try {
+            const shareData = {
+                title: title,
+                text: `${tagline}\n\n${url}`,
+                url: url
+            };
+            
+            // Try to include image if available
+            if (imageUrl) {
+                try {
+                    const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        shareData.files = [file];
+                    }
+                } catch (error) {
+                    console.log('Could not add image to share');
+                }
+            }
+            
+            await navigator.share(shareData);
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.log('Share failed, falling back to clipboard');
                 copyToClipboard(url);
                 alert('Link copied to clipboard!');
             }
-            break;
+        }
+    } else {
+        // Fallback: copy to clipboard
+        copyToClipboard(url);
+        alert('Link copied to clipboard!');
+    }
+}
+
+// Helper function to fetch image and convert to File object
+async function fetchImageAsFile(imageUrl, filename) {
+    try {
+        const response = await fetch(imageUrl, { mode: 'cors' });
+        if (!response.ok) throw new Error('Failed to fetch image');
+        const blob = await response.blob();
+        return new File([blob], filename, { type: blob.type || 'image/jpeg' });
+    } catch (error) {
+        console.error('Error fetching image:', error);
+        throw error;
+    }
+}
+
+// Helper function to download image
+function downloadImage(url, filename) {
+    try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.target = '_blank';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up after a short delay
+        setTimeout(() => {
+            document.body.removeChild(link);
+        }, 100);
+    } catch (error) {
+        console.error('Error downloading image:', error);
+        // Fallback: open image in new tab
+        window.open(url, '_blank');
     }
 }
 
