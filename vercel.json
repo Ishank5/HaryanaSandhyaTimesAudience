@@ -2,29 +2,18 @@
   "rewrites": [
     {
       "source": "/article.html",
-      "destination": "/api/article",
-      "has": [
-        {
-          "type": "query",
-          "key": "id"
-        }
-      ]
+      "destination": "/api/article"
     }
   ],
   "headers": [
     {
-      "source": "/api/article",
+      "source": "/api/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "s-maxage=300, stale-while-revalidate=86400"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
+          "value": "public, s-maxage=300, stale-while-revalidate=86400"
         }
       ]
     }
   ]
 }
-
