@@ -584,22 +584,33 @@ async function handleLike() {
     }
 }
 
-// Increment website visits counter
+// Increment website visits counter (date-wise)
 async function incrementWebsiteVisits() {
     try {
         const statsRef = db.collection('stats').doc('website');
         const statsDoc = await statsRef.get();
         
+        // Get current date in YYYY-MM-DD format (IST)
+        const now = new Date();
+        const istDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+        const dateKey = istDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        
         if (statsDoc.exists) {
-            // Document exists, increment the counter
+            const stats = statsDoc.data();
+            const dailyVisits = stats.dailyVisits || {};
+            const currentCount = dailyVisits[dateKey] || 0;
+            
+            // Update the specific date's count
             await statsRef.update({
-                totalVisits: firebase.firestore.FieldValue.increment(1),
+                [`dailyVisits.${dateKey}`]: currentCount + 1,
                 lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
             });
         } else {
-            // Document doesn't exist, create it with initial value of 1
+            // Document doesn't exist, create it with initial value for today
             await statsRef.set({
-                totalVisits: 1,
+                dailyVisits: {
+                    [dateKey]: 1
+                },
                 lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
