@@ -31,6 +31,13 @@ export default async function handler(req, res) {
         return res.status(404).send('Article not found or not published');
       }
   
+      // Helper to convert Firestore timestamp to Date
+      const convertTimestamp = (timestampValue) => {
+        if (!timestampValue) return null;
+        // Firestore timestamp format: "2025-01-15T10:30:00.000Z"
+        return new Date(timestampValue);
+      };
+      
       // Extract article data - handle all Firestore field types
       const article = {
         id: id,
@@ -41,8 +48,9 @@ export default async function handler(req, res) {
         location: data.fields.location?.stringValue || '',
         reporter: data.fields.reporter?.stringValue || '',
         content: data.fields.content?.stringValue || '',
-        publishedDate: data.fields.publishedDate?.timestampValue || null,
-        updatedAt: data.fields.updatedAt?.timestampValue || null,
+        status: data.fields.status?.stringValue || 'published',
+        publishedDate: convertTimestamp(data.fields.publishedDate?.timestampValue),
+        updatedAt: convertTimestamp(data.fields.updatedAt?.timestampValue),
         additionalImages: data.fields.additionalImages?.arrayValue?.values?.map(v => v.stringValue) || []
       };
   
@@ -113,16 +121,16 @@ export default async function handler(req, res) {
       ${article.additionalImages && article.additionalImages.length > 0 ? article.additionalImages.map(img => `<img src="${escapeHtml(img)}" alt="Article image" style="max-width:100%; height:auto;">`).join('') : ''}
       <div>${article.content || ''}</div>
       ` : `
-      <!-- Full page for users -->
+      <!-- Full page for users - complete HTML structure -->
       <header class="header">
           <div class="container">
               <div class="header-content">
                   <div class="logo-section">
                       <a href="/index.html" class="logo-link">
-                          <img src="/logo2.png.jpg" alt="Haryana Sandhya Times Logo" class="logo">
+                          <img src="/logo2.png.jpg" alt="Haryana Sandhya Times Logo" class="logo" id="logoImg">
                           <div class="logo-text">
-                              <h1>हरियाणा संध्या टाइम्स</h1>
-                              <p class="tagline">सत्य की आवाज़</p>
+                              <h1 id="siteName">हरियाणा संध्या टाइम्स</h1>
+                              <p class="tagline" id="siteTagline">सत्य की आवाज़</p>
                           </div>
                       </a>
                   </div>
@@ -137,56 +145,127 @@ export default async function handler(req, res) {
       <main class="article-main">
           <div class="container">
               <div class="article-container">
+                  <!-- Article Header -->
                   <div class="article-header">
-                      <div class="article-genre" id="articleGenre">${escapeHtml(article.genre || '')}</div>
-                      <h1 class="article-title" id="articleTitle">${escapeHtml(article.title)}</h1>
-                      <p class="article-tagline" id="articleTagline">${escapeHtml(article.tagline || '')}</p>
+                      <div class="article-genre" id="articleGenre"></div>
+                      <h1 class="article-title" id="articleTitle"></h1>
+                      <p class="article-tagline" id="articleTagline"></p>
                       
                       <div class="article-meta-info">
                           <div class="meta-item">
                               <i class="far fa-calendar"></i>
                               <span class="meta-label">Published:</span>
-                              <span id="publishedDate">${article.publishedDate || 'N/A'}</span>
+                              <span id="publishedDate"></span>
+                              <span class="timezone">IST</span>
                           </div>
-                          ${article.location ? `
-                          <div class="meta-item" id="locationItem">
+                          <div class="meta-item">
+                              <i class="far fa-edit"></i>
+                              <span class="meta-label">Updated:</span>
+                              <span id="updatedDate"></span>
+                              <span class="timezone">IST</span>
+                          </div>
+                          <div class="meta-item" id="locationItem" style="display: none;">
                               <i class="fas fa-map-marker-alt"></i>
-                              <span id="articleLocation">${escapeHtml(article.location)}</span>
-                          </div>` : ''}
-                          ${article.reporter ? `
-                          <div class="meta-item" id="reporterItem">
+                              <span id="articleLocation"></span>
+                          </div>
+                          <div class="meta-item" id="reporterItem" style="display: none;">
                               <i class="fas fa-user"></i>
-                              <span id="articleReporter">${escapeHtml(article.reporter)}</span>
-                          </div>` : ''}
+                              <span id="articleReporter"></span>
+                          </div>
                       </div>
   
+                      <!-- Share Buttons -->
                       <div class="share-section">
-                          <button class="share-btn share-whatsapp" onclick="shareArticle('whatsapp')">
+                          <button class="share-btn share-generic" onclick="shareArticle('generic')" title="Share">
+                              <i class="fas fa-share-alt"></i>
+                              <span>Share</span>
+                          </button>
+                          <button class="share-btn share-whatsapp" onclick="shareArticle('whatsapp')" title="Share on WhatsApp">
                               <i class="fab fa-whatsapp"></i>
                           </button>
-                          <button class="share-btn share-facebook" onclick="shareArticle('facebook')">
+                          <button class="share-btn share-facebook" onclick="shareArticle('facebook')" title="Share on Facebook">
                               <i class="fab fa-facebook-f"></i>
+                          </button>
+                          <button class="share-btn share-instagram" onclick="shareArticle('instagram')" title="Share on Instagram">
+                              <i class="fab fa-instagram"></i>
+                          </button>
+                          <button class="share-btn share-twitter" onclick="shareArticle('twitter')" title="Share on X (Twitter)">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                              </svg>
                           </button>
                       </div>
                   </div>
   
+                  <!-- Images Section -->
                   <div class="article-images" id="articleImages">
                       <div class="images-scroll-container" id="imagesContainer">
-                          ${article.imageUrl ? `<div class="article-image-item"><img src="${escapeHtml(article.imageUrl)}" alt="${escapeHtml(article.title)}" style="max-width:100%; height:auto;"></div>` : ''}
-                          ${article.additionalImages ? article.additionalImages.map((img, i) => 
-                              `<div class="article-image-item"><img src="${escapeHtml(img)}" alt="Image ${i+2}" style="max-width:100%; height:auto;"></div>`
-                          ).join('') : ''}
+                          <!-- Images will be inserted here by article.js -->
                       </div>
                   </div>
   
-                  <div class="article-content" id="articleContent">${article.content || ''}</div>
+                  <!-- Article Content -->
+                  <div class="article-content" id="articleContent">
+                      <!-- Content will be inserted here by article.js -->
+                  </div>
+              </div>
+  
+              <!-- Recommended Articles -->
+              <div class="recommended-section">
+                  <h2 class="section-title">Recommended Articles</h2>
+                  
+                  <div class="recommended-grid">
+                      <div class="recommended-category">
+                          <h3 class="category-title">
+                              <i class="fas fa-tag"></i>
+                              More from <span id="sameGenreTitle"></span>
+                          </h3>
+                          <div class="articles-grid" id="sameGenreArticles"></div>
+                      </div>
+                      
+                      <div class="recommended-category" id="sameLocationSection" style="display: none;">
+                          <h3 class="category-title">
+                              <i class="fas fa-map-marker-alt"></i>
+                              Latest from <span id="sameLocationTitle"></span>
+                          </h3>
+                          <div class="articles-grid" id="sameLocationArticles"></div>
+                      </div>
+                  </div>
               </div>
           </div>
       </main>
   
       <footer class="footer">
           <div class="container">
-              <p>© Haryana Sandhya Times</p>
+              <div class="footer-content">
+                  <div class="footer-section">
+                      <img src="/logo2.png.jpg" alt="Logo" class="footer-logo">
+                      <h3 id="footerSiteName">हरियाणा संध्या टाइम्स</h3>
+                      <p id="footerDesc">हरियाणा संध्या टाइम्स एक प्रमुख समाचार पोर्टल है जो निष्पक्ष और सत्य समाचार प्रदान करता है। हमारा उद्देश्य समाज को सूचित और जागरूक रखना है।</p>
+                  </div>
+                  <div class="footer-section">
+                      <h4 id="footerShareTitle">हमें फॉलो करें</h4>
+                      <div class="social-links">
+                          <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                          <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                          <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                          <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                          <a href="#" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                      </div>
+                  </div>
+                  <div class="footer-section">
+                      <h4 id="footerNavigateTitle">नेविगेट</h4>
+                      <ul class="footer-links">
+                          <li><a href="/index.html#home" class="footer-link">होम</a></li>
+                          <li><a href="/index.html#articles" class="footer-link">लेख</a></li>
+                          <li><a href="/index.html#about" class="footer-link">हमारे बारे में</a></li>
+                          <li><a href="/index.html#reporter" class="footer-link">रिपोर्टर बनें</a></li>
+                      </ul>
+                  </div>
+              </div>
+          </div>
+          <div class="footer-bottom">
+              <p id="footerMade">Made with <i class="fas fa-heart"></i> by <a href="https://humblesolutions.in" target="_blank">Humble Solutions Pvt Ltd</a></p>
           </div>
       </footer>
       
@@ -194,6 +273,7 @@ export default async function handler(req, res) {
       <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
       <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
       <script>
+          // Inject article data for article.js to use
           window.articleData = ${JSON.stringify(article)};
       </script>
       <script src="/article.js"></script>
