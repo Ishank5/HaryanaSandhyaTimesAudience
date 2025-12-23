@@ -2,9 +2,11 @@
 // Vercel Serverless Function to serve article pages with meta tags
 
 export default async function handler(req, res) {
+    // Get ID from query params (works for both /api/article?id=... and /article.html?id=... via rewrite)
     const id = req.query?.id;
     
     console.log('Article API called - ID:', id);
+    console.log('Request URL:', req.url);
     console.log('User-Agent:', req.headers['user-agent']);
     
     if (!id) {
@@ -48,16 +50,18 @@ export default async function handler(req, res) {
       console.log('Image URL:', article.imageUrl);
       console.log('Additional Images:', article.additionalImages);
   
-      // Build current URL
+      // Build current URL - use article.html for canonical URL
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers.host;
-      const currentUrl = `${protocol}://${host}/article.html?id=${id}`;
+      const articleUrl = `${protocol}://${host}/article.html?id=${id}`;
+      const apiUrl = `${protocol}://${host}/api/article?id=${id}`;
   
-      // Check if requester is a bot/crawler
+      // Check if requester is a bot/crawler (more comprehensive detection)
       const userAgent = req.headers['user-agent'] || '';
-      const isBot = /bot|crawler|spider|facebook|whatsapp|twitter|telegram|slack|linkedin/i.test(userAgent);
+      const isBot = /bot|crawler|spider|facebookexternalhit|facebook|whatsapp|twitter|telegram|slack|linkedin|pinterest|googlebot|bingbot|yandex|baiduspider|duckduckbot|slurp|exabot|facebot|ia_archiver/i.test(userAgent);
       
       console.log('Is Bot:', isBot);
+      console.log('User-Agent:', userAgent);
   
       // Generate HTML with proper meta tags
       const html = `<!DOCTYPE html>
@@ -67,9 +71,12 @@ export default async function handler(req, res) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${escapeHtml(article.title)} - Haryana Sandhya Times</title>
       
+      <!-- Canonical URL -->
+      <link rel="canonical" href="${articleUrl}">
+      
       <!-- Open Graph / Facebook / WhatsApp -->
       <meta property="og:type" content="article">
-      <meta property="og:url" content="${currentUrl}">
+      <meta property="og:url" content="${articleUrl}">
       <meta property="og:title" content="${escapeHtml(article.title)}">
       <meta property="og:description" content="${escapeHtml(article.tagline || article.title)}">
       <meta property="og:site_name" content="Haryana Sandhya Times">
@@ -84,7 +91,7 @@ export default async function handler(req, res) {
       
       <!-- Twitter Card -->
       <meta name="twitter:card" content="summary_large_image">
-      <meta name="twitter:url" content="${currentUrl}">
+      <meta name="twitter:url" content="${articleUrl}">
       <meta name="twitter:title" content="${escapeHtml(article.title)}">
       <meta name="twitter:description" content="${escapeHtml(article.tagline || article.title)}">
       ${article.imageUrl ? `<meta name="twitter:image" content="${escapeHtml(article.imageUrl)}">` : ''}
@@ -92,15 +99,13 @@ export default async function handler(req, res) {
       <!-- Standard Meta -->
       <meta name="description" content="${escapeHtml(article.tagline || article.title)}">
       
-      ${!isBot ? `
       <link rel="stylesheet" href="/article.css">
       <link rel="stylesheet" href="/style.css">
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-      ` : ''}
   </head>
   <body>
       ${isBot ? `
-      <!-- Simple content for bots -->
+      <!-- Simple content for bots - they only need meta tags, but we'll show content too -->
       <h1>${escapeHtml(article.title)}</h1>
       <p>${escapeHtml(article.tagline || '')}</p>
       ${article.imageUrl ? `<img src="${escapeHtml(article.imageUrl)}" alt="${escapeHtml(article.title)}" style="max-width:100%; height:auto;">` : ''}
