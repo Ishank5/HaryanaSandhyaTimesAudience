@@ -119,17 +119,11 @@ function displayArticle(article) {
         document.getElementById('reporterItem').style.display = 'flex';
     }
 
-    // Views and Likes
-    const views = article.views !== undefined ? article.views : 0;
-    const likes = article.likes !== undefined ? article.likes : 0;
-    document.getElementById('articleViews').textContent = views.toLocaleString();
-    document.getElementById('articleLikes').textContent = likes.toLocaleString();
+    // Views and Likes - fetch latest from Firestore to ensure accuracy
+    refreshArticleStats(article.id);
     
     // Increment views when article is loaded
     incrementViews(article.id);
-    
-    // Initialize like button state
-    initializeLikeButton(article.id, likes);
 
     // Images
     const imagesContainer = document.getElementById('imagesContainer');
@@ -465,12 +459,41 @@ async function incrementViews(articleId) {
     }
 }
 
+// Refresh article stats (views and likes) from Firestore
+async function refreshArticleStats(articleId) {
+    try {
+        const doc = await db.collection('articles').doc(articleId).get();
+        if (!doc.exists) return;
+        
+        const article = doc.data();
+        const views = article.views !== undefined ? article.views : 0;
+        const likes = article.likes !== undefined ? article.likes : 0;
+        
+        // Update display
+        document.getElementById('articleViews').textContent = views.toLocaleString();
+        document.getElementById('articleLikes').textContent = likes.toLocaleString();
+        
+        // Initialize like button state with fresh data
+        initializeLikeButton(articleId, likes);
+        
+        // Update currentArticle object
+        if (currentArticle) {
+            currentArticle.views = views;
+            currentArticle.likes = likes;
+        }
+    } catch (error) {
+        console.error('Error refreshing article stats:', error);
+    }
+}
+
 // Initialize like button state
 function initializeLikeButton(articleId, currentLikes) {
     const likedArticles = JSON.parse(localStorage.getItem('likedArticles') || '[]');
     const isLiked = likedArticles.includes(articleId);
     
     const likeBtn = document.getElementById('likeBtn');
+    if (!likeBtn) return; // Button might not exist yet
+    
     const likeIcon = document.getElementById('likeIcon');
     const likeText = document.getElementById('likeText');
     
@@ -553,6 +576,9 @@ async function handleLike() {
         
         // Update current article object
         currentArticle.likes = currentLikes;
+        
+        // Refresh stats to ensure consistency
+        await refreshArticleStats(articleId);
     } catch (error) {
         console.error('Error handling like:', error);
     }

@@ -180,20 +180,19 @@ export default async function handler(req, res) {
                               <span id="articleViews">0</span>
                               <span class="meta-label">views</span>
                           </div>
-                          <div class="meta-item">
+                          <div class="meta-item" style="display: flex; align-items: center; gap: 8px;">
                               <i class="fas fa-heart"></i>
                               <span id="articleLikes">0</span>
                               <span class="meta-label">likes</span>
+                              <button class="like-btn" id="likeBtn" onclick="handleLike()" style="padding: 6px 12px; border: 2px solid #FF0F22; background: transparent; color: #FF0F22; border-radius: 20px; cursor: pointer; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 5px; transition: all 0.3s ease; margin-left: 5px;">
+                                  <i class="far fa-heart" id="likeIcon"></i>
+                                  <span id="likeText">Like</span>
+                              </button>
                           </div>
                       </div>
   
-                      <!-- Like and Share Buttons -->
-                      <div class="like-share-section" style="display: flex; gap: 15px; align-items: center; margin-top: 20px; flex-wrap: wrap;">
-                          <button class="like-btn" id="likeBtn" onclick="handleLike()" style="padding: 12px 24px; border: 2px solid #FF0F22; background: transparent; color: #FF0F22; border-radius: 25px; cursor: pointer; font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.3s ease;">
-                              <i class="far fa-heart" id="likeIcon"></i>
-                              <span id="likeText">Like</span>
-                          </button>
-                          <div class="share-section" style="display: flex; gap: 10px;">
+                      <!-- Share Buttons -->
+                      <div class="share-section" style="display: flex; gap: 10px; margin-top: 20px;">
                           <button class="share-btn share-generic" onclick="shareArticle('generic')" title="Share">
                               <i class="fas fa-share-alt"></i>
                               <span>Share</span>
