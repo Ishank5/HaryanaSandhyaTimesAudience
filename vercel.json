@@ -2,7 +2,13 @@
   "rewrites": [
     {
       "source": "/article.html",
-      "destination": "/api/article"
+      "destination": "/api/article",
+      "has": [
+        {
+          "type": "query",
+          "key": "id"
+        }
+      ]
     }
   ],
   "headers": [
@@ -11,7 +17,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "s-maxage=3600, stale-while-revalidate=86400"
+          "value": "s-maxage=300, stale-while-revalidate=86400"
         },
         {
           "key": "X-Content-Type-Options",

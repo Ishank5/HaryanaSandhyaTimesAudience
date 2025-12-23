@@ -428,7 +428,18 @@ function setMetaTags(article) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    loadArticle();
+    // Check if article data was injected by serverless function
+    if (window.articleData) {
+        // Article data already loaded from server
+        currentArticle = window.articleData;
+        displayArticle(window.articleData);
+        loadRecommendedArticles(window.articleData);
+        document.title = `${window.articleData.title} - Haryana Sandhya Times`;
+        // Meta tags are already set in HTML, no need to set them again
+    } else {
+        // Load article from Firestore (fallback for direct access to article-view.html)
+        loadArticle();
+    }
 });
 
 
