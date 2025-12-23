@@ -319,47 +319,120 @@ async function shareToWhatsAppWithImage(title, tagline, url, imageUrl) {
         return;
     }
 
-    try {
-        const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
-        
-        // Check if Web Share API with files is supported
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    files: [file],
-                    title: title,
-                    text: message
-                });
-                return; // Success - image shared automatically!
-            } catch (shareError) {
-                if (shareError.name === 'AbortError') {
-                    return; // User cancelled
+    // Check if Android (for intent URL)
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isAndroid) {
+        // Android: Try Web Share API first, then Intent URL
+        try {
+            console.log('Android detected, trying Web Share API first');
+            
+            if (navigator.share) {
+                const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
+                
+                // Try Web Share API with file (best method)
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: title,
+                            text: message
+                        });
+                        console.log('Web Share API successful on Android!');
+                        return;
+                    } catch (shareError) {
+                        if (shareError.name === 'AbortError') {
+                            return;
+                        }
+                        console.log('Web Share API failed, trying Intent URL:', shareError);
+                    }
+                } else {
+                    // Try sharing anyway (some browsers don't check canShare correctly)
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            text: `${title}\n\n${message}`
+                        });
+                        console.log('Web Share API successful (without canShare check)!');
+                        return;
+                    } catch (directError) {
+                        console.log('Direct share failed, using Intent URL fallback');
+                    }
                 }
             }
-        }
-        
-        // Fallback for mobile
-        if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            
+            // Fallback: Use Android Intent URL
+            console.log('Using Android Intent URL method');
+            
+            // Download image first so user can attach it
+            downloadImage(imageUrl, 'article-image.jpg');
+            
+            // Use WhatsApp Intent URL to open WhatsApp with pre-filled text
+            // Format: intent://send/#Intent;scheme=whatsapp;action=android.intent.action.SEND;S.android.intent.extra.TEXT=text;package=com.whatsapp;end
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappIntent = `intent://send/#Intent;scheme=whatsapp;action=android.intent.action.SEND;S.android.intent.extra.TEXT=${encodedMessage};package=com.whatsapp;end`;
+            
+            // Try to open intent
+            setTimeout(() => {
+                window.location.href = whatsappIntent;
+                
+                // Show instruction after a moment
+                setTimeout(() => {
+                    alert('WhatsApp is opening with the message. The image has been downloaded to your gallery - please attach it from the gallery when sharing in WhatsApp.');
+                }, 1000);
+            }, 300);
+            
+        } catch (error) {
+            console.error('Error with Android share:', error);
+            // Final fallback
             downloadImage(imageUrl, 'article-image.jpg');
             setTimeout(() => {
                 const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
                 window.open(whatsappUrl, '_blank');
-            }, 500);
-        } else {
-            // Desktop fallback
-            downloadImage(imageUrl, 'article-image.jpg');
-            setTimeout(() => {
-                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-                window.open(whatsappUrl, '_blank');
-                alert('Image downloaded! Please attach it manually in WhatsApp Web.');
+                alert('Image downloaded! Please attach it in WhatsApp from your gallery.');
             }, 500);
         }
-    } catch (error) {
-        console.error('Error sharing to WhatsApp:', error);
-        // Fallback to text-only
-        const shareUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(shareUrl, '_blank');
+        return;
     }
+
+    // For iOS or other mobile devices, use Web Share API
+    if (isMobile && navigator.share) {
+        try {
+            console.log('Mobile device detected, trying Web Share API');
+            const file = await fetchImageAsFile(imageUrl, 'article-image.jpg');
+            
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: title,
+                        text: message
+                    });
+                    return;
+                } catch (shareError) {
+                    if (shareError.name === 'AbortError') {
+                        return;
+                    }
+                    throw shareError;
+                }
+            }
+        } catch (error) {
+            console.error('Web Share API failed:', error);
+        }
+    }
+
+    // Fallback for all platforms: Download image and open WhatsApp
+    downloadImage(imageUrl, 'article-image.jpg');
+    setTimeout(() => {
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+        if (isMobile) {
+            alert('Image downloaded! Please attach it in WhatsApp from your gallery.');
+        } else {
+            alert('Image downloaded! Please attach it manually in WhatsApp Web.');
+        }
+    }, 500);
 }
 
 // Share to Facebook
@@ -480,14 +553,86 @@ async function shareGeneric(title, tagline, url, imageUrl) {
 // Helper function to fetch image and convert to File object
 async function fetchImageAsFile(imageUrl, filename) {
     try {
-        const response = await fetch(imageUrl, { mode: 'cors' });
-        if (!response.ok) throw new Error('Failed to fetch image');
+        console.log('Fetching image with URL:', imageUrl);
+        
+        // First, try direct fetch with CORS
+        let response;
+        try {
+            response = await fetch(imageUrl, { 
+                mode: 'cors',
+                credentials: 'omit'
+            });
+        } catch (fetchError) {
+            console.log('Direct fetch failed, trying canvas method:', fetchError);
+            // If direct fetch fails due to CORS, use canvas method
+            return await fetchImageViaCanvas(imageUrl, filename);
+        }
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        
         const blob = await response.blob();
-        return new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        console.log('Blob created, size:', blob.size, 'type:', blob.type);
+        
+        // Ensure we have a valid image type
+        const imageType = blob.type || 'image/jpeg';
+        const file = new File([blob], filename, { type: imageType });
+        console.log('File created:', file.name, file.size, file.type);
+        
+        return file;
     } catch (error) {
         console.error('Error fetching image:', error);
-        throw error;
+        // Try canvas method as fallback
+        try {
+            console.log('Attempting canvas method as fallback...');
+            return await fetchImageViaCanvas(imageUrl, filename);
+        } catch (canvasError) {
+            console.error('Canvas method also failed:', canvasError);
+            throw error;
+        }
     }
+}
+
+// Alternative method using canvas to handle CORS issues
+async function fetchImageViaCanvas(imageUrl, filename) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // Enable CORS
+        
+        img.onload = function() {
+            try {
+                // Create canvas and draw image
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                // Convert canvas to blob
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        reject(new Error('Failed to convert canvas to blob'));
+                        return;
+                    }
+                    const file = new File([blob], filename, { type: 'image/jpeg' });
+                    console.log('File created via canvas:', file.name, file.size);
+                    resolve(file);
+                }, 'image/jpeg', 0.95);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        
+        img.onerror = function(error) {
+            console.error('Image load error:', error);
+            reject(new Error('Failed to load image'));
+        };
+        
+        // Start loading the image
+        img.src = imageUrl;
+    });
 }
 
 // Helper function to download image
@@ -510,6 +655,19 @@ function downloadImage(url, filename) {
         // Fallback: open image in new tab
         window.open(url, '_blank');
     }
+}
+
+// Helper function to convert File to Base64
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result;
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
 // Copy to clipboard
