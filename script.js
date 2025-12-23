@@ -312,6 +312,8 @@ function getTimestampMillis(timestamp) {
 function createArticleCard(article) {
     const card = document.createElement('div');
     card.className = 'article-card';
+    const views = article.views !== undefined ? article.views : 0;
+    const likes = article.likes !== undefined ? article.likes : 0;
     card.innerHTML = `
         <img src="${article.imageUrl || 'placeholder.jpg'}" alt="${article.title}" class="article-image">
         <div class="article-content">
@@ -322,6 +324,10 @@ function createArticleCard(article) {
                     ${formatDate(article.publishedDate)}
                 </span>
                 ${article.genre ? `<span class="genre-badge">${article.genre}</span>` : ''}
+            </div>
+            <div class="article-stats" style="display: flex; gap: 15px; margin-top: 10px; font-size: 0.9rem; color: #666;">
+                <span><i class="fas fa-eye"></i> ${views.toLocaleString()}</span>
+                <span><i class="fas fa-heart"></i> ${likes.toLocaleString()}</span>
             </div>
         </div>
     `;
@@ -638,9 +644,37 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('reporterForm').addEventListener('submit', handleReporterFormSubmit);
     
+    // Increment website visit counter
+    incrementWebsiteVisits();
+    
     loadLiveNews();
     loadArticles();
     loadGenres();
     loadAboutContent();
 });
+
+// Increment website visits counter
+async function incrementWebsiteVisits() {
+    try {
+        const statsRef = db.collection('stats').doc('website');
+        const statsDoc = await statsRef.get();
+        
+        if (statsDoc.exists) {
+            // Document exists, increment the counter
+            await statsRef.update({
+                totalVisits: firebase.firestore.FieldValue.increment(1),
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } else {
+            // Document doesn't exist, create it with initial value of 1
+            await statsRef.set({
+                totalVisits: 1,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    } catch (error) {
+        console.error('Error incrementing website visits:', error);
+        // Silently fail - don't interrupt user experience
+    }
+}
 

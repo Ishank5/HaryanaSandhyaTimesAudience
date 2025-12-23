@@ -51,8 +51,11 @@ export default async function handler(req, res) {
         status: data.fields.status?.stringValue || 'published',
         publishedDate: convertTimestamp(data.fields.publishedDate?.timestampValue),
         updatedAt: convertTimestamp(data.fields.updatedAt?.timestampValue),
-        additionalImages: data.fields.additionalImages?.arrayValue?.values?.map(v => v.stringValue) || []
+        additionalImages: data.fields.additionalImages?.arrayValue?.values?.map(v => v.stringValue) || [],
+        views: data.fields.views?.integerValue ? parseInt(data.fields.views.integerValue) : (data.fields.views?.doubleValue ? parseInt(data.fields.views.doubleValue) : 0),
+        likes: data.fields.likes?.integerValue ? parseInt(data.fields.likes.integerValue) : (data.fields.likes?.doubleValue ? parseInt(data.fields.likes.doubleValue) : 0)
       };
+      
   
       console.log('Article loaded:', article.title);
       console.log('Image URL:', article.imageUrl);
@@ -172,10 +175,25 @@ export default async function handler(req, res) {
                               <i class="fas fa-user"></i>
                               <span id="articleReporter"></span>
                           </div>
+                          <div class="meta-item">
+                              <i class="fas fa-eye"></i>
+                              <span id="articleViews">0</span>
+                              <span class="meta-label">views</span>
+                          </div>
+                          <div class="meta-item">
+                              <i class="fas fa-heart"></i>
+                              <span id="articleLikes">0</span>
+                              <span class="meta-label">likes</span>
+                          </div>
                       </div>
   
-                      <!-- Share Buttons -->
-                      <div class="share-section">
+                      <!-- Like and Share Buttons -->
+                      <div class="like-share-section" style="display: flex; gap: 15px; align-items: center; margin-top: 20px; flex-wrap: wrap;">
+                          <button class="like-btn" id="likeBtn" onclick="handleLike()" style="padding: 12px 24px; border: 2px solid #FF0F22; background: transparent; color: #FF0F22; border-radius: 25px; cursor: pointer; font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.3s ease;">
+                              <i class="far fa-heart" id="likeIcon"></i>
+                              <span id="likeText">Like</span>
+                          </button>
+                          <div class="share-section" style="display: flex; gap: 10px;">
                           <button class="share-btn share-generic" onclick="shareArticle('generic')" title="Share">
                               <i class="fas fa-share-alt"></i>
                               <span>Share</span>
@@ -194,6 +212,7 @@ export default async function handler(req, res) {
                                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                               </svg>
                           </button>
+                          </div>
                       </div>
                   </div>
   

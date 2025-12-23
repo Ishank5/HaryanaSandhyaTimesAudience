@@ -119,6 +119,18 @@ function displayArticle(article) {
         document.getElementById('reporterItem').style.display = 'flex';
     }
 
+    // Views and Likes
+    const views = article.views !== undefined ? article.views : 0;
+    const likes = article.likes !== undefined ? article.likes : 0;
+    document.getElementById('articleViews').textContent = views.toLocaleString();
+    document.getElementById('articleLikes').textContent = likes.toLocaleString();
+    
+    // Increment views when article is loaded
+    incrementViews(article.id);
+    
+    // Initialize like button state
+    initializeLikeButton(article.id, likes);
+
     // Images
     const imagesContainer = document.getElementById('imagesContainer');
     imagesContainer.innerHTML = '';
@@ -231,6 +243,8 @@ function displayArticleCards(articles, containerId) {
 function createArticleCard(article) {
     const card = document.createElement('div');
     card.className = 'article-card';
+    const views = article.views !== undefined ? article.views : 0;
+    const likes = article.likes !== undefined ? article.likes : 0;
     card.innerHTML = `
         <img src="${article.imageUrl || 'placeholder.jpg'}" alt="${article.title}" class="article-image">
         <div class="article-content">
@@ -241,6 +255,10 @@ function createArticleCard(article) {
                     ${formatDate(article.publishedDate)}
                 </span>
                 ${article.genre ? `<span class="genre-badge">${article.genre}</span>` : ''}
+            </div>
+            <div class="article-stats" style="display: flex; gap: 15px; margin-top: 10px; font-size: 0.9rem; color: #666;">
+                <span><i class="fas fa-eye"></i> ${views.toLocaleString()}</span>
+                <span><i class="fas fa-heart"></i> ${likes.toLocaleString()}</span>
             </div>
         </div>
     `;
@@ -426,8 +444,150 @@ function setMetaTags(article) {
     setMetaTag('description', description, false);
 }
 
+// Increment views
+async function incrementViews(articleId) {
+    try {
+        const doc = await db.collection('articles').doc(articleId).get();
+        if (!doc.exists) return;
+        
+        const article = doc.data();
+        const currentViews = article.views !== undefined ? article.views : 0;
+        
+        await db.collection('articles').doc(articleId).update({
+            views: currentViews + 1,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Update display
+        document.getElementById('articleViews').textContent = (currentViews + 1).toLocaleString();
+    } catch (error) {
+        console.error('Error incrementing views:', error);
+    }
+}
+
+// Initialize like button state
+function initializeLikeButton(articleId, currentLikes) {
+    const likedArticles = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+    const isLiked = likedArticles.includes(articleId);
+    
+    const likeBtn = document.getElementById('likeBtn');
+    const likeIcon = document.getElementById('likeIcon');
+    const likeText = document.getElementById('likeText');
+    
+    if (isLiked) {
+        likeBtn.style.background = '#FF0F22';
+        likeBtn.style.color = '#fff';
+        likeIcon.classList.remove('far');
+        likeIcon.classList.add('fas');
+        likeText.textContent = 'Liked';
+    } else {
+        likeBtn.style.background = 'transparent';
+        likeBtn.style.color = '#FF0F22';
+        likeIcon.classList.remove('fas');
+        likeIcon.classList.add('far');
+        likeText.textContent = 'Like';
+    }
+}
+
+// Handle like button click
+async function handleLike() {
+    if (!currentArticle) return;
+    
+    const articleId = currentArticle.id;
+    const likedArticles = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+    const isLiked = likedArticles.includes(articleId);
+    
+    const likeBtn = document.getElementById('likeBtn');
+    const likeIcon = document.getElementById('likeIcon');
+    const likeText = document.getElementById('likeText');
+    const likesElement = document.getElementById('articleLikes');
+    
+    try {
+        const doc = await db.collection('articles').doc(articleId).get();
+        if (!doc.exists) return;
+        
+        const article = doc.data();
+        let currentLikes = article.likes !== undefined ? article.likes : 0;
+        
+        if (isLiked) {
+            // Unlike - remove from localStorage
+            const index = likedArticles.indexOf(articleId);
+            if (index > -1) {
+                likedArticles.splice(index, 1);
+            }
+            localStorage.setItem('likedArticles', JSON.stringify(likedArticles));
+            
+            // Update button
+            likeBtn.style.background = 'transparent';
+            likeBtn.style.color = '#FF0F22';
+            likeIcon.classList.remove('fas');
+            likeIcon.classList.add('far');
+            likeText.textContent = 'Like';
+            
+            // Decrement likes
+            currentLikes = Math.max(0, currentLikes - 1);
+        } else {
+            // Like - add to localStorage
+            likedArticles.push(articleId);
+            localStorage.setItem('likedArticles', JSON.stringify(likedArticles));
+            
+            // Update button
+            likeBtn.style.background = '#FF0F22';
+            likeBtn.style.color = '#fff';
+            likeIcon.classList.remove('far');
+            likeIcon.classList.add('fas');
+            likeText.textContent = 'Liked';
+            
+            // Increment likes
+            currentLikes = currentLikes + 1;
+        }
+        
+        // Update in Firestore
+        await db.collection('articles').doc(articleId).update({
+            likes: currentLikes,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Update display
+        likesElement.textContent = currentLikes.toLocaleString();
+        
+        // Update current article object
+        currentArticle.likes = currentLikes;
+    } catch (error) {
+        console.error('Error handling like:', error);
+    }
+}
+
+// Increment website visits counter
+async function incrementWebsiteVisits() {
+    try {
+        const statsRef = db.collection('stats').doc('website');
+        const statsDoc = await statsRef.get();
+        
+        if (statsDoc.exists) {
+            // Document exists, increment the counter
+            await statsRef.update({
+                totalVisits: firebase.firestore.FieldValue.increment(1),
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } else {
+            // Document doesn't exist, create it with initial value of 1
+            await statsRef.set({
+                totalVisits: 1,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    } catch (error) {
+        console.error('Error incrementing website visits:', error);
+        // Silently fail - don't interrupt user experience
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Increment website visit counter
+    incrementWebsiteVisits();
+    
     // Check if article data was injected by serverless function
     if (window.articleData) {
         // Article data already loaded from server
